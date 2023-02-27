@@ -37,7 +37,15 @@ reply({view, Mod, Params}, Req) ->
     Socket0 = ecommerl_socket:new(Mod, Params),
     {ok, Socket} = apply(Mod, mount, [Params, Socket0]),
     #{bindings := Bindings} = Socket,
-    Html = apply(Mod, render, [Bindings]),
+    Html0 = apply(Mod, render, [Bindings]),
+    Html =
+        case maps:find(layout, Params) of
+            {ok, LayoutMod} ->
+                apply(LayoutMod, render, [
+                    maps:merge(Bindings, #{inner_content => Html0})]);
+            error ->
+                Html0
+        end,
     Headers = maps:merge(maps:get(headers, Params, #{}), #{
         <<"content-type">> => <<"text/html">>
     }),
