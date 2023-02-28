@@ -15,4 +15,4 @@ mount(_Params, Socket) ->
 
 %% TODO: Relative path
 render(Bindings) ->
-    ?F("/home/williamthome/Projects/erlang/ecommerl/priv/templates/layout/app.html.eel").
+    ?F(ecommerl_template:layout_dir("app.html.eel")).

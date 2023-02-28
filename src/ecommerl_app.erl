@@ -8,7 +8,7 @@
 -behaviour(application).
 
 -export([start/2, stop/1]).
--export([priv_dir/0]).
+-export([priv_dir/0, priv_dir/1]).
 
 start(_StartType, _StartArgs) ->
     ok = ecommerl_server:start(),
@@ -19,5 +19,8 @@ stop(_State) ->
 
 priv_dir() ->
     code:priv_dir(ecommerl).
+
+priv_dir(Path) when is_list(Path) ->
+    filename:join([priv_dir() | Path]).
 
 %% internal functions
