@@ -4,5 +4,5 @@
 
 -import(ecommerl_socket, [bind/3, bind_new/3]).
 
--define(H(Html), {{html, Html}, Bindings}).
+-define(H(Html), {{html, string:trim(Html)}, Bindings}).
 -define(F(Filename), {{filename, Filename}, Bindings}).

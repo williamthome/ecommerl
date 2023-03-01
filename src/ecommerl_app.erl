@@ -11,7 +11,16 @@
 -export([priv_dir/0, priv_dir/1]).
 
 start(_StartType, _StartArgs) ->
-    ok = ecommerl_server:start(),
+    Routes = [
+        {'_', [
+            {"/css/[...]", cowboy_static, {priv_dir, ecommerl, "static/css"}},
+            {"/js/[...]", cowboy_static, {priv_dir, ecommerl, "static/js"}},
+            {"/favicon.ico", cowboy_static, {priv_file, ecommerl, "static/favicon.ico"}},
+            {"/websocket", ecommerl_ws, #{}},
+            {'_', ecommerl_handler, #{}}
+        ]}
+    ],
+    ok = ecommerl_server:start(Routes),
     ecommerl_sup:start_link().
 
 stop(_State) ->

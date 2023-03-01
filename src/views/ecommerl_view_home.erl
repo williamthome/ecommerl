@@ -10,9 +10,17 @@
 %%% API functions
 %%%=============================================================================
 
-mount(_Params, Socket0) ->
-    Socket = bind(name, <<"World">>, Socket0),
-    {ok, Socket}.
-
-render(Bindings) ->
-    ?H("Hello, <%= Name .%>!").
+render(Bindings) -> ?H("
+<main id=\"app\">
+    Hello, <%= case maps:find('Name', Bindings) of
+                   {ok, Name} -> Name;
+                   error -> <<\"Nobody\">> end
+           .%>!
+    <button
+        type='button'
+        onclick='app.socket.send(`render`, {name: `World`})'
+    >
+        Fire!
+    </button>
+</main>
+").

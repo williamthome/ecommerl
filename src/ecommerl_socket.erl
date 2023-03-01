@@ -1,20 +1,26 @@
 -module(ecommerl_socket).
 
 %% API functions
--export([new/2, bindings/1, bind/3, bind_new/3]).
+-export([new/1, route/1, bindings/1, set_bindings/2, bind/3, bind_new/3]).
 
 %%%=============================================================================
 %%% API functions
 %%%=============================================================================
 
-new(View, Opts) ->
+new(Route) ->
     #{
-        view => View,
-        bindings => maps:get(bindings, Opts, #{})
+        route => Route,
+        bindings => #{}
     }.
+
+route(#{route := Route}) ->
+    Route.
 
 bindings(#{bindings := Bindings}) ->
     Bindings.
+
+set_bindings(Bindings, Socket) ->
+    Socket#{bindings => Bindings}.
 
 bind(Key, Value, #{bindings := Bindings} = Socket) ->
     Socket#{bindings => Bindings#{Key => Value}}.
