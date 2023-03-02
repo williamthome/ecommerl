@@ -1,7 +1,7 @@
 -module(ecommerl_view_home).
 
 %% API functions
--export([mount/2, render/1]).
+-export([render/1]).
 
 %% Includes
 -include("ecommerl_view.hrl").
@@ -11,13 +11,13 @@
 %%%=============================================================================
 
 render(Bindings) -> ?H("
-<main id=\"app\">
+<main id='app'>
     <%= case maps:find('Name', Bindings) of %>
     <%     {ok, Name} -> %>
         <span>Hello, <%= Name .%>!</span>
         <button
             type='button'
-            onclick='app.socket.send(`ping`)'
+            data-event='ping'
         >
             Ping
         </button>
@@ -25,7 +25,8 @@ render(Bindings) -> ?H("
         <span>Nobody's home =(</span>
         <button
             type='button'
-            onclick='app.socket.send(`render`, {name: `World`})'
+            data-event='render'
+            data-name='World'
         >
             Fire!
         </button>

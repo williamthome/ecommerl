@@ -1,5 +1,29 @@
 "use strict"
 
+/* SETUP */
+
+function installEvents(root) {
+    root.querySelectorAll("[data-event]").forEach((elem) => {
+        if (!elem.dataset.eventOn) elem.dataset.eventOn = "click"
+        const { event, eventOn, ...payload } = elem.dataset
+        elem[`on${eventOn}`] = function() {
+            // TODO: check is app is ready
+            app.socket.send(event, payload)
+        }
+    })
+}
+
+function render(elem, html) {
+    morphdom(elem, html)
+    installEvents(elem)
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    installEvents(document.body)
+})
+
+/* APP */
+
 window["app"] = (() => {
     if (!("WebSocket" in window))  {
         throw new Error("App is not supported by this browser =(")
@@ -21,7 +45,7 @@ window["app"] = (() => {
                 console.log("New worker msg:", e)
                 switch(e.data.event) {
                     case "render":
-                        morphdom(state.rootElem, e.data.payload)
+                        render(state.rootElem, e.data.payload)
                         break
                 }
             }
@@ -99,11 +123,12 @@ window["app"] = (() => {
         setup,
         socket: {
             send,
-        }
+        },
     }
 })()
 
 app.setup().then(() => {
+    document.dispatchEvent(new CustomEvent("ready"))
     console.log("App is ready")
 }).catch((err) => {
     console.error(err)
