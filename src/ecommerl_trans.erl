@@ -26,17 +26,14 @@ parse_transform(Forms0, Options) ->
         ]),
         parse_x:append_funs(["ast() -> _@ast."], [{ast, AST}])
     ]).
-    % Forms0.
 
 map({function, FunPos, render, 1,
         [{clause, ClausePos, Args, Guards, FunForms0}]}, State) ->
     [H | T] = lists:reverse(FunForms0),
     AST = get_ast(H),
     SubsForms = parse_x:normalize_forms(?Q(
-        ["AST = _@ast,",
-         "eel_renderer:render(AST, Bindings)"],
-        [{ast, merl:term(AST)}])),
-    FunForms = T ++ SubsForms,
+        "eel_renderer:render(ast(), Bindings)")),
+    FunForms = lists:merge(T, SubsForms),
     Form = {function, FunPos, render, 1,
                [{clause, ClausePos, Args, Guards, FunForms}]},
     push_form(State#state{ast = AST}, Form);
@@ -50,7 +47,8 @@ get_ast({tuple, _, [{tuple, _, [K, V]}, {var, _, 'Bindings'}]}) ->
     get_ast_1(eval(K), eval(V)).
 
 get_ast_1(html, Html) when is_list(Html); is_binary(Html) ->
-    eel:compile(unicode:characters_to_nfc_binary(Html));
+    Bin = unicode:characters_to_nfc_binary(Html),
+    eel:compile(Bin);
 get_ast_1(filename, Filename) when is_list(Filename); is_binary(Filename) ->
     eel:compile_file(Filename).
 

@@ -13,7 +13,7 @@
 render(Bindings) -> ?H("
 <main id='app'>
     <%= case maps:find('Name', Bindings) of %>
-    <%     {ok, Name} -> %>
+    <% {ok, Name} -> %>
         <span>Hello, <%= Name .%>!</span>
         <button
             type='button'
@@ -21,7 +21,7 @@ render(Bindings) -> ?H("
         >
             Ping
         </button>
-    <%  ;  error -> %>
+    <% ; error -> %>
         <span>Nobody's home =(</span>
         <button
             type='button'
