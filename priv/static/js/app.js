@@ -1,29 +1,5 @@
 "use strict"
 
-/* SETUP */
-
-function installEvents(root) {
-    root.querySelectorAll("[data-event]").forEach((elem) => {
-        if (!elem.dataset.eventOn) elem.dataset.eventOn = "click"
-        const { event, eventOn, ...payload } = elem.dataset
-        elem[`on${eventOn}`] = function() {
-            // TODO: check is app is ready
-            app.socket.send(event, payload)
-        }
-    })
-}
-
-function render(elem, html) {
-    morphdom(elem, html)
-    installEvents(elem)
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    installEvents(document.body)
-})
-
-/* APP */
-
 window["app"] = (() => {
     if (!("WebSocket" in window))  {
         throw new Error("App is not supported by this browser =(")
@@ -34,7 +10,27 @@ window["app"] = (() => {
         worker: null,
         isConnected: false,
         isReady: false,
-        rootElem: document.getElementById("app")
+        rootElem: undefined
+    }
+
+    async function setup() {
+        await Promise.all([
+            miscSetup(),
+            workerSetup(),
+            socketSetup(),
+        ])
+        state.isReady = true
+    }
+
+    function miscSetup() {
+        return new Promise((resolve) => {
+            document.addEventListener("DOMContentLoaded", () => {
+                installEvents(document.body)
+                console.log("Events installed")
+            })
+            resolve()
+            console.log("Misc setup completed")
+        })
     }
 
     function workerSetup() {
@@ -45,8 +41,14 @@ window["app"] = (() => {
                 console.log("New worker msg:", e)
                 switch(e.data.event) {
                     case "render":
-                        render(state.rootElem, e.data.payload)
+                        const {id, html} = e.data.payload
+                        render(id, html)
                         break
+                    case "ready":
+                        if (!state.isReady) resolve()
+                        const {root} = e.data.payload
+                        state.rootElem = document.getElementById(root)
+                        console.log("Server is ready", e.data.payload)
                 }
             }
 
@@ -56,12 +58,11 @@ window["app"] = (() => {
 
             state.worker = worker
 
-            resolve()
-
             console.log("Worker is ready")
         })
     }
 
+    // TODO: Ping to server and restart WS timeout
     function socketSetup() {
         return new Promise((resolve) => {
             const url = new URL(`ws://${location.host}/websocket`)
@@ -105,18 +106,32 @@ window["app"] = (() => {
         })
     }
 
+    // TODO: multiple events
+    function installEvents(root) {
+        root.querySelectorAll("[data-event]").forEach((elem) => {
+            if (!elem.dataset.eventOn) elem.dataset.eventOn = "click"
+            const { event, eventOn, ...payload } = elem.dataset
+            elem[`on${eventOn}`] = function() {
+                // TODO: check is app is ready
+                // TODO: snake_case
+                app.socket.send(event, payload)
+            }
+        })
+    }
+
+    function render(id, html) {
+        const elem = id
+            ? document.getElementById(id)
+            : state.rootElem
+
+        morphdom(elem, html)
+        installEvents(elem)
+    }
+
     function send(event, payload = {}) {
         state.socket.send(JSON.stringify({
             event, payload
         }))
-    }
-
-    async function setup() {
-        await Promise.all([
-            workerSetup(),
-            socketSetup(),
-        ])
-        state.isReady = true
     }
 
     return {

@@ -73,7 +73,13 @@ init(Req0, #{}) ->
 
 websocket_init(State) ->
     io:format("init websocket [~p]: ~p~n", [self(), State]),
-    reply(<<"ready">>, #{}, State).
+    % TODO: Get root id via config.
+    %       Root is the "app" HTML element, e.g.:
+    %           <main id="app"></main>
+    %       The root is the render fallback element.
+    Root = <<"app">>,
+    Payload = #{<<"root">> => Root},
+    reply(<<"ready">>, Payload, State).
 
 %% -----------------------------------------------------------------------------
 %% @doc websocket_handle/2.
@@ -99,10 +105,8 @@ websocket_info({notify, Event, Payload}, State) ->
 -spec terminate(any(), cowboy_req:req(), any()) -> ok.
 
 terminate(Reason, Req, _State) ->
-    io:format(
-        "websocket connection terminated~n~p~nReason: ~p~n",
-        [maps:get(peer, Req), Reason]
-    ),
+    io:format("websocket connection terminated~n~p~nReason: ~p~n",
+              [maps:get(peer, Req), Reason]),
     ok.
 
 %%%=============================================================================
@@ -120,7 +124,10 @@ handle(Msg, #state{socket = Socket0} = State) ->
             SocketBindings = ecommerl_socket:bindings(Socket0),
             Bindings = maps:merge(SocketBindings, Payload),
             Socket = ecommerl_socket:set_bindings(Bindings, Socket0),
-            Reply = ecommerl_template:render(Socket, #{skip_layout => true}),
+            Html = ecommerl_template:render(Socket, #{skip_layout => true}),
+            ElemId = ecommerl_template:elem_id(Html),
+            Reply = #{<<"id">> => ElemId,
+                      <<"html">> => Html},
             reply(<<"render">>, Reply, State)
     end.
 
@@ -132,8 +139,6 @@ normalize_payload(Payload) ->
     Payload.
 
 reply(Event, Payload, State) ->
-    Msg = ecommerl_utils:encode_json(#{
-        <<"event">> => Event,
-        <<"payload">> => Payload
-    }),
+    Msg = ecommerl_utils:encode_json(#{<<"event">> => Event,
+                                       <<"payload">> => Payload}),
     {reply, {text, Msg}, State}.
