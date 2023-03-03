@@ -107,6 +107,7 @@ window["app"] = (() => {
     }
 
     // TODO: multiple events
+    // TODO: prefix data-*, e.g. data-weĺ-event="foo"
     function installEvents(root) {
         root.querySelectorAll("[data-event]").forEach((elem) => {
             if (!elem.dataset.eventOn) elem.dataset.eventOn = "click"
@@ -126,6 +127,7 @@ window["app"] = (() => {
 
         morphdom(elem, html)
         installEvents(elem)
+        document.dispatchEvent(new CustomEvent("render", {id, html}))
     }
 
     function send(event, payload = {}) {

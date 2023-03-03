@@ -78,6 +78,7 @@ websocket_init(State) ->
     %           <main id="app"></main>
     %       The root is the render fallback element.
     Root = <<"app">>,
+
     Payload = #{<<"root">> => Root},
     reply(<<"ready">>, Payload, State).
 
@@ -116,20 +117,20 @@ terminate(Reason, Req, _State) ->
 handle(Msg, #state{socket = Socket0} = State) ->
     io:format("Got msg: ~p~n", [Msg]),
     {ok, Data} = ecommerl_utils:decode_json(Msg),
-    case maps:get(<<"event">>, Data) of
-        <<"ping">> ->
-            reply(<<"pong">>, Data, State);
-        _ ->
-            Payload = normalize_payload(maps:get(<<"payload">>, Data)),
-            SocketBindings = ecommerl_socket:bindings(Socket0),
-            Bindings = maps:merge(SocketBindings, Payload),
-            Socket = ecommerl_socket:set_bindings(Bindings, Socket0),
-            Html = ecommerl_template:render(Socket, #{skip_layout => true}),
-            ElemId = ecommerl_template:elem_id(Html),
-            Reply = #{<<"id">> => ElemId,
-                      <<"html">> => Html},
-            reply(<<"render">>, Reply, State)
-    end.
+    Event = maps:get(<<"event">>, Data),
+    Payload = normalize_payload(maps:get(<<"payload">>, Data)),
+    View = ecommerl_socket:view(Socket0),
+
+    % TODO: {reply, map(), Socket}, where map() returns to the client as callback
+    {noreply, Socket} = apply(View, handle_event, [Event, Payload, Socket0]),
+
+    % TODO: Render event should be called if there is some change in the socket.
+    Html = ecommerl_template:render(Socket, #{skip_layout => true}),
+    ElemId = ecommerl_template:elem_id(Html),
+    Reply = #{<<"id">> => ElemId, <<"html">> => Html},
+
+    % TODO: Resolve
+    reply(<<"render">>, Reply, State).
 
 normalize_payload(Payload) when is_map(Payload) ->
     maps:fold(fun(K, V, A) -> A#{binary_to_existing_atom(K) => V} end,
