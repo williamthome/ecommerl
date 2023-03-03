@@ -94,7 +94,8 @@ maybe_append_funs(Funs, Env) ->
 print_result(Forms) ->
     io:format("~s~n", [lists:flatten(
         [erl_pp:form(F) || F <- epp:restore_typed_record_fields(Forms)]
-    )]).
+    )]),
+    Forms.
 
 find_function(FunName, Arity, [{function, _, FunName, Arity, _} = Fun | _]) ->
     {true, Fun};
@@ -103,9 +104,11 @@ find_function(FunName, Arity, [_ | T]) ->
 find_function(_, _, []) ->
     false.
 
-normalize_forms(Forms) ->
+normalize_forms(Forms) when is_list(Forms) ->
     epp:restore_typed_record_fields(
-        [erl_syntax:revert(T) || T <- lists:flatten(Forms)]).
+        [erl_syntax:revert(T) || T <- lists:flatten(Forms)]);
+normalize_forms(Forms) when is_tuple(Forms) ->
+    normalize_forms([Forms]).
 
 %%%=============================================================================
 %%% Internal functions
