@@ -2,7 +2,11 @@
 
 -export([parse_transform/3, parse_transform/5, get_context/1, set_context/2,
          append_attrs/1, append_attrs/2, append_funs/1, append_funs/2,
-         maybe_append_funs/1, maybe_append_funs/2, fold/2, print_result/1,
+         maybe_append_funs/1, maybe_append_funs/2, text_to_form/2,
+         text_to_function_form/2, replace_function/2, replace_function/3,
+         replace_function/4, insert_above/2, insert_below/2, insert_attribute/2,
+         insert_attribute/3, insert_function/2, insert_function/3,
+         insert_function/4, unexport_function/3, fold/2, pprint/1,
          find_function/3, normalize_forms/1]).
 
 -export_type([form/0, body/0, insp_f/0]).
@@ -91,9 +95,118 @@ maybe_append_funs(Funs) ->
 maybe_append_funs(Funs, Env) ->
     fun(State) -> maybe_append_funs(State, Funs, Env) end.
 
-print_result(Forms) ->
+text_to_form(Text, Env0) when is_list(Text); is_binary(Text) ->
+    Body = flatten_text(Text),
+    Env = to_merl_term(Env0),
+    case Env =:= [] of
+        true -> try ?Q(Text)
+                catch _:Reason:Stack ->
+                    error({error, {text_to_form, {text, Text}, Env, Reason, Stack}}) end;
+        false -> try ?Q(Body, Env)
+                 catch _:Reason:Stack ->
+                     error({error, {text_to_form, {body, Body}, Env, Reason, Stack}}) end
+    end.
+
+text_to_function_form(Text, Env) ->
+    Body = flatten_text(Text),
+    Name = guess_fun_name(Body),
+    Clauses = text_to_form(Text, Env),
+    erl_syntax:function(erl_syntax:atom(Name), Clauses).
+
+replace_function(Text, Forms) ->
+    replace_function(Text, [], Forms).
+
+replace_function(Text, Env, Forms) ->
+    replace_function(Text, Env, Forms, []).
+
+replace_function(Text, Env, Forms0, Opts) ->
+    Body = flatten_text(Text),
+    Name = guess_fun_name(Body),
+    Arity = guess_fun_arity(Body),
+    Clauses = text_to_form(Text, Env),
+    Forms = parse_trans:replace_function(Name, Arity, Clauses, Forms0, Opts),
+    case proplists:get_value(export, Opts, false) of
+        true ->
+            parse_trans:export_function(Name, Arity, Forms);
+
+        false ->
+            Forms
+    end.
+
+insert_above(Form, Forms0) when is_list(Form) ->
+    Context = parse_trans:initial_context(Forms0, []),
+    {Forms, _} = parse_trans:do_transform(
+        fun(function, F, _, false) ->
+                {Form, F, [], false, true};
+
+            (_, F, _, Acc) ->
+                {F, false, Acc} end,
+        false, Forms0, Context),
+    Forms;
+insert_above(Form, Forms0) when is_tuple(Form) ->
+    insert_above([Form], Forms0).
+
+insert_below(Form, [F | Rest]) ->
+    case erl_syntax:type(F) of
+        eof_marker ->
+            case Form of
+                Form when is_list(Form) ->
+                    Form ++ [F | Rest];
+                Form when is_tuple(Form) ->
+                    [Form, F | Rest]
+            end;
+
+        _ ->
+            [F | insert_below(Form, Rest)]
+    end.
+
+insert_attribute(Text, Forms) ->
+    insert_attribute(Text, [], Forms).
+
+insert_attribute(Text, Env, Forms) ->
+    Form = text_to_form(Text, Env),
+    insert_above(Form, Forms).
+
+insert_function(Text, Forms0) ->
+    insert_function(Text, [], Forms0).
+
+insert_function(Text, Env, Forms0) ->
+    insert_function(Text, Env, Forms0, []).
+
+insert_function(Text, Env, Forms0, Opts) ->
+    Body = flatten_text(Text),
+    Name = guess_fun_name(Body),
+    Arity = guess_fun_arity(Body),
+    Form = text_to_form(Text, Env),
+    Forms = insert_below(Form, Forms0),
+    case proplists:get_value(export, Opts, false) of
+        true ->
+            parse_trans:export_function(Name, Arity, Forms);
+
+        false ->
+            Forms
+    end.
+
+unexport_function(Name, Arity, Forms) ->
+    lists:filtermap(
+        fun({attribute, Pos, export, Export0}) ->
+                case lists:filter(fun({N, A}) -> N =/= Name orelse
+                                                 A =/= Arity end, Export0)
+                of
+                    [] -> false;
+
+                    Export ->
+                        {true, {attribute, Pos, export, Export}}
+                end;
+
+            (Form) -> {true, Form}
+        end,
+        Forms
+    ).
+
+pprint(Forms) ->
     io:format("~s~n", [lists:flatten(
-        [erl_pp:form(F) || F <- epp:restore_typed_record_fields(Forms)]
+        [erl_pp:form(F) || F <- normalize_forms(Forms)]
     )]),
     Forms.
 
@@ -251,18 +364,6 @@ to_merl_term(Env, Acc0) ->
 
 normalize_state(#state{forms = Forms} = State) ->
     State#state{forms = normalize_forms(Forms)}.
-
-text_to_form(Text, Env0) ->
-    Body = flatten_text(Text),
-    Env = to_merl_term(Env0),
-    case Env =:= [] of
-        true -> try ?Q(Text)
-                catch _:Reason:Stack ->
-                    error({error, {text_to_form, {text, Text}, Env, Reason, Stack}}) end;
-        false -> try ?Q(Body, Env)
-                 catch _:Reason:Stack ->
-                     error({error, {text_to_form, {body, Body}, Env, Reason, Stack}}) end
-    end.
 
 text_to_fun(Text, Env, Opts) when is_list(Text); is_binary(Text) ->
     Body = flatten_text(Text),
