@@ -5,53 +5,37 @@
 
 -include_lib("syntax_tools/include/merl.hrl").
 
--record(state, {
-    forms = [],
-    ast
-}).
-
-parse_transform(Forms0, Options) ->
-    State = lists:foldr(fun(F, S) -> map(F, S) end, #state{}, Forms0),
-    #state{forms = Forms, ast = AST} = State,
-    parse_x:parse_transform(Forms, Options, [
-        parse_x:maybe_append_funs([
-            {
-                not parse_trans:function_exists(mount, 2, Forms),
-                "mount(_Params, Socket) -> {ok, Socket}."
-            },
-            {
-                not parse_trans:function_exists(handle_params, 2, Forms),
-                "handle_params(_Params, Socket) -> {noreply, Socket}."
-            }
-        ]),
-        parse_x:append_funs(["ast() -> _@ast."], [{ast, AST}])
-    ]).
-
-map({function, FunPos, render, 1,
-        [{clause, ClausePos, Args, Guards, FunForms0}]}, State) ->
-    [H | T] = lists:reverse(FunForms0),
-    AST = get_ast(H),
-    SubsForms = parse_x:normalize_forms(?Q(
-        "eel_renderer:render(ast(), Bindings)")),
-    FunForms = lists:merge(T, SubsForms),
-    Form = {function, FunPos, render, 1,
-               [{clause, ClausePos, Args, Guards, FunForms}]},
-    push_form(State#state{ast = AST}, Form);
-map(Form, State) ->
-    push_form(State, Form).
-
-push_form(#state{forms = Forms} = State, Form) ->
-    State#state{forms = [Form | Forms]}.
-
-get_ast({tuple, _, [{tuple, _, [K, V]}, {var, _, 'Bindings'}]}) ->
-    get_ast_1(eval(K), eval(V)).
-
-get_ast_1(html, Html) when is_list(Html); is_binary(Html) ->
-    Bin = unicode:characters_to_nfc_binary(Html),
-    eel:compile(Bin);
-get_ast_1(filename, Filename) when is_list(Filename); is_binary(Filename) ->
-    eel:compile_file(Filename).
-
-eval(Form) ->
-    {value, Value, #{}} = erl_eval:exprs([Form], #{}),
-    Value.
+parse_transform(Forms0, _Options) ->
+    Module = parse_trans:get_module(Forms0),
+    EElModule = binary_to_atom(<<(atom_to_binary(Module))/binary, "_eel">>),
+    Forms1 = parse_x:replace_function("render(Bindings) -> render(Bindings, #{}).",
+                                      [{eel_module, EElModule}],
+                                      Forms0,
+                                      [{rename_original, render_defs}]),
+    Forms2 = parse_x:insert_function(["render(Bindings0, Opts) ->",
+                                       "    {_, Bindings} = render_defs(Bindings0),",
+                                       "    _@eel_module:render(Bindings, Opts)."],
+                                      [{eel_module, EElModule}], Forms1),
+    Forms3 = parse_x:unexport_function(render_defs, 1, Forms2),
+    Forms4 = parse_x:insert_attribute("-on_load(compile/0).", Forms3),
+    Forms5 = parse_x:insert_function(
+        ["compile() ->",
+         "    {ok, _@eel_module} =",
+         "        case render_defs(#{}) of",
+         "            {{html, Html0}, _} ->",
+         "                Html = unicode:characters_to_nfc_binary(string:trim(Html0)),"
+         "                eel:compile_to_module(Html, _@eel_module);",
+         "            {{html, Html0, Opts}, _} ->",
+         "                Html = unicode:characters_to_nfc_binary(string:trim(Html0)),"
+         "                eel:compile_to_module(Html, _@eel_module, Opts);",
+         "            {{file, Filename}, _} ->",
+         "                eel:compile_file_to_module(Filename, _@eel_module);",
+         "            {{file, Filename, Opts}, _} ->",
+         "                eel:compile_file_to_module(Filename, _@eel_module, Opts)",
+         "        end,",
+         "    ok."],
+        [{eel_module, EElModule}], Forms4),
+    % parse_x:pprint(
+        parse_x:normalize_forms(Forms5)
+    % )
+    .

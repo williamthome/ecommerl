@@ -1,13 +1,13 @@
 -module(ecommerl_view_home).
 
-%% API functions
+%% ecommerl_view callbacks
 -export([render/1, handle_event/3]).
 
 %% Includes
 -include("ecommerl_view.hrl").
 
 %%%=============================================================================
-%%% API functions
+%%% ecommerl_view callbacks
 %%%=============================================================================
 
 render(Bindings) -> ?H("

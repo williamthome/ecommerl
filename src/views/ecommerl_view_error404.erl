@@ -1,13 +1,13 @@
 -module(ecommerl_view_error404).
 
-%% API functions
+%% ecommerl_view callbacks
 -export([render/1]).
 
 %% Includes
 -include("ecommerl_view.hrl").
 
 %%%=============================================================================
-%%% API functions
+%%% ecommerl_view callbacks
 %%%=============================================================================
 
 render(Bindings) ->
