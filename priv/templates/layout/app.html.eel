@@ -13,6 +13,7 @@
     </title>
 
     <script src="js/morphdom-umd.min.js" defer></script>
+    <script src="js/broker.js" defer></script>
     <script src="js/app.js" defer></script>
 </head>
 <body>

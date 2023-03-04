@@ -17,7 +17,7 @@ render(Bindings) -> ?H("
         <span>Hello, <%= Name .%>!</span>
         <button
             type='button'
-            data-event='ping'
+            onclick='ping()'
         >
             Ping
         </button>
@@ -35,7 +35,7 @@ render(Bindings) -> ?H("
 ").
 
 handle_event(<<"ping">>, #{}, Socket) ->
-    {noreply, Socket};
+    {reply, <<"pong">>, Socket};
 handle_event(<<"set_name">>, #{name := Name}, Socket0) ->
     Socket = ecommerl_socket:bind(name, Name, Socket0),
     {noreply, Socket}.

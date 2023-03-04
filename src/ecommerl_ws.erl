@@ -121,13 +121,19 @@ handle(Msg, #state{socket = Socket0} = State) ->
     Payload = normalize_payload(maps:get(<<"payload">>, Data)),
     View = ecommerl_socket:view(Socket0),
 
-    % TODO: {reply, map(), Socket}, where map() returns to the client as callback
-    {noreply, Socket} = apply(View, handle_event, [Event, Payload, Socket0]),
+    % TODO: Just a draft code, change this!
+    {Socket, P} =
+        case apply(View, handle_event, [Event, Payload, Socket0]) of
+            {noreply, S} -> {S, #{}};
+            {reply, HP, S} ->
+                HashID = maps:get('#id', Payload),
+                {S, #{<<"#id">> => HashID, <<"#payload">> => HP}}
+        end,
 
     % TODO: Render event should be called if there is some change in the socket.
     Html = ecommerl_template:render(Socket, #{skip_layout => true}),
     ElemId = ecommerl_template:elem_id(Html),
-    Reply = #{<<"id">> => ElemId, <<"html">> => Html},
+    Reply = P#{<<"id">> => ElemId, <<"html">> => Html},
 
     % TODO: Resolve
     reply(<<"render">>, Reply, State).
