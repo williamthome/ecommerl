@@ -28,7 +28,7 @@
     arity :: non_neg_integer(),
     body  :: body(),
     form  :: form(),
-    public = true :: boolean()
+    export = true :: boolean()
 }).
 
 -record(transform, {
@@ -214,15 +214,16 @@ funs_to_forms(#state{transform = #transform{functions = Funs},
                      context = Context} = State) ->
     Forms =
         lists:foldl(
-            fun(#function{name = Name, arity = Arity, form = Form, public = Public}, Acc) ->
+            fun(#function{name = Name, arity = Arity, form = Form, export = Export}, Acc) ->
                 case parse_trans:function_exists(Name, Arity, InitForms) of
                     true ->
                         %% TODO: Change ending function from dot to comma and
-                        %%       insert code below the existing function.
+                        %%       insert code below the existing function or
+                        %%       replace the function. NOTE: This can be an option.
                         parse_trans:do_insert_forms(below, [Form], Acc, Context);
 
                     false ->
-                        case Public of
+                        case Export of
                             true ->
                                 parse_trans:export_function(Name, Arity,
                                     parse_trans:do_insert_forms(below, [Form], Acc, Context));
@@ -268,8 +269,8 @@ text_to_fun(Text, Env, Opts) when is_list(Text); is_binary(Text) ->
     Name = guess_fun_name(Body),
     Arity = guess_fun_arity(Body),
     Form = text_to_form(Text, Env),
-    Public = maps:get(public, Opts, true),
-    #function{name = Name, arity = Arity, body = Body, form = Form, public = Public}.
+    Export = maps:get(export, Opts, true),
+    #function{name = Name, arity = Arity, body = Body, form = Form, export = Export}.
 
 guess_fun_name(Body) ->
     guess_fun_name(Body, []).
