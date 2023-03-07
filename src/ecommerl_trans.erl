@@ -11,14 +11,9 @@ parse_transform(Forms, _Options) ->
             ["compile() ->",
              "    {ok, _@eel_module} =",
              "        case render_defs(#{}) of",
-             "            {{html, Html0}, _} ->",
-             "                Html = unicode:characters_to_nfc_binary(string:trim(Html0)),"
-             "                eel:compile_to_module(Html, _@eel_module);",
              "            {{html, Html0, Opts}, _} ->",
-             "                Html = unicode:characters_to_nfc_binary(string:trim(Html0)),"
+             "                Html = unicode:characters_to_nfc_binary(string:trim(Html0)),",
              "                eel:compile_to_module(Html, _@eel_module, Opts);",
-             "            {{file, Filename}, _} ->",
-             "                eel:compile_file_to_module(Filename, _@eel_module);",
              "            {{file, Filename, Opts}, _} ->",
              "                eel:compile_file_to_module(Filename, _@eel_module, Opts)",
              "        end,",
@@ -35,5 +30,19 @@ parse_transform(Forms, _Options) ->
             ["render(Bindings0, Opts) ->",
              "    {_, Bindings} = render_defs(Bindings0),",
              "    _@eel_module:render(Bindings, Opts)."],
-            #{eel_module => EElModule}, [export])
+            #{eel_module => EElModule}, [export]),
+
+        parserl_trans:if_false(
+            parserl_trans:function_exists(mount, 2),
+            parserl_trans:insert_function(
+                "mount(_Params, Socket) -> {ok, Socket}.",
+                #{}, [export])
+        ),
+
+        parserl_trans:if_false(
+            parserl_trans:function_exists(handle_params, 2),
+            parserl_trans:insert_function(
+                "handle_params(_Params, Socket) -> {noreply, Socket}.",
+                #{}, [export])
+        )
     ]).
