@@ -3,6 +3,10 @@
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.11.0">>},1},
  {<<"gproc">>,{pkg,<<"gproc">>,<<"0.9.0">>},0},
  {<<"parse_trans">>,{pkg,<<"parse_trans">>,<<"3.4.1">>},0},
+ {<<"parserl">>,
+  {git,"https://github.com/williamthome/parserl.git",
+       {ref,"a776fefe80207c17756f0610751496e6539cb91b"}},
+  0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.8.0">>},1},
  {<<"thoas">>,{pkg,<<"thoas">>,<<"1.0.0">>},0}]}.
 [
